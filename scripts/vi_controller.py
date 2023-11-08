@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     sub_goal = rospy.Subscriber("/move_base_simple/goal", PoseStamped, receive_goal)
 
-    rate = rospy.Rate(20) 
+    rate = rospy.Rate(60) 
     while not rospy.is_shutdown():
         if goal_data == None:
             rate.sleep()

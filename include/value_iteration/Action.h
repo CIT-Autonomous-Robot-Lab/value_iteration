@@ -17,6 +17,12 @@ public:
 
 	int id_;
 
+    double delta_distance;  //追加
+    double delta_theta;	    //追加
+
+//	int64_t getCost() const;  //追加
+//  int64_t someAdjustment() const;  //追加
+
 //	double _delta_fw_stdev;
 //	double _delta_rot_stdev;
 

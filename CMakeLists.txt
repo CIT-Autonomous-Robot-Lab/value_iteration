@@ -158,6 +158,7 @@ add_library(SweepWorkerStatus src/SweepWorkerStatus.cpp)
 add_library(State src/State.cpp)
 add_library(Action src/Action.cpp)
 add_library(StateTransition src/StateTransition.cpp)
+add_library(Astar_ValueIterator src/Astar_ValueIterator.cpp)  ##追記
 
 # この2行を追加
 add_dependencies(ValueIterator ${TARGET_NAME} ${PROJECT_NAME}_generate_messages_cpp)
@@ -166,6 +167,8 @@ add_dependencies(SweepWorkerStatus ${TARGET_NAME} ${PROJECT_NAME}_generate_messa
 add_dependencies(State ${TARGET_NAME} ${PROJECT_NAME}_generate_messages_cpp)
 add_dependencies(Action ${TARGET_NAME} ${PROJECT_NAME}_generate_messages_cpp)
 add_dependencies(StateTransition ${TARGET_NAME} ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(Astar_ValueIterator ${TARGET_NAME} ${PROJECT_NAME}_generate_messages_cpp)  ##追記
+
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -178,6 +181,7 @@ add_executable(vi_node src/vi_node.cpp)
 add_executable(vi_node_no_local src/vi_node_no_local.cpp)
 add_executable(vi_node_after_planning src/vi_node_after_planning.cpp)
 add_executable(vi_node_after_planning_no_local src/vi_node_after_planning_no_local.cpp)
+add_executable(vi_node_with_astar src/vi_node_with_astar.cpp) ##追記
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -185,6 +189,7 @@ add_dependencies(vi_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_T
 add_dependencies(vi_node_no_local ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(vi_node_after_planning ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(vi_node_after_planning_no_local ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(vi_node_with_astar ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(vi_node ${catkin_LIBRARIES} )
@@ -194,6 +199,7 @@ target_link_libraries(vi_node SweepWorkerStatus ${catkin_LIBRARIES} )
 target_link_libraries(vi_node State ${catkin_LIBRARIES} )
 target_link_libraries(vi_node Action ${catkin_LIBRARIES} )
 target_link_libraries(vi_node StateTransition ${catkin_LIBRARIES} )
+#target_link_libraries(vi_node Astar_ValueIterator ${catkin_LIBRARIES} )  ##追記
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(vi_node_after_planning ${catkin_LIBRARIES} )
@@ -203,6 +209,7 @@ target_link_libraries(vi_node_after_planning SweepWorkerStatus ${catkin_LIBRARIE
 target_link_libraries(vi_node_after_planning State ${catkin_LIBRARIES} )
 target_link_libraries(vi_node_after_planning Action ${catkin_LIBRARIES} )
 target_link_libraries(vi_node_after_planning StateTransition ${catkin_LIBRARIES} )
+#target_link_libraries(vi_node_after_planning Astar_ValueIterator ${catkin_LIBRARIES} )  ##追記
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(vi_node_no_local ${catkin_LIBRARIES} )
@@ -211,6 +218,7 @@ target_link_libraries(vi_node_no_local SweepWorkerStatus ${catkin_LIBRARIES} )
 target_link_libraries(vi_node_no_local State ${catkin_LIBRARIES} )
 target_link_libraries(vi_node_no_local Action ${catkin_LIBRARIES} )
 target_link_libraries(vi_node_no_local StateTransition ${catkin_LIBRARIES} )
+#target_link_libraries(vi_node_no_local Astar_ValueIterator ${catkin_LIBRARIES} )  ##追記
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(vi_node_after_planning_no_local ${catkin_LIBRARIES} )
@@ -219,6 +227,20 @@ target_link_libraries(vi_node_after_planning_no_local SweepWorkerStatus ${catkin
 target_link_libraries(vi_node_after_planning_no_local State ${catkin_LIBRARIES} )
 target_link_libraries(vi_node_after_planning_no_local Action ${catkin_LIBRARIES} )
 target_link_libraries(vi_node_after_planning_no_local StateTransition ${catkin_LIBRARIES} )
+#target_link_libraries(vi_node_after_planning_no_local Astar_ValueIterator ${catkin_LIBRARIES} )  ##追記
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(vi_node_with_astar ${catkin_LIBRARIES} )
+target_link_libraries(vi_node_with_astar ValueIterator ${catkin_LIBRARIES} )
+target_link_libraries(vi_node_with_astar SweepWorkerStatus ${catkin_LIBRARIES} )
+target_link_libraries(vi_node_with_astar State ${catkin_LIBRARIES} )
+target_link_libraries(vi_node_with_astar Action ${catkin_LIBRARIES} )
+target_link_libraries(vi_node_with_astar StateTransition ${catkin_LIBRARIES} )
+target_link_libraries(vi_node_with_astar Astar_ValueIterator ${catkin_LIBRARIES} )  ##追記
+# Astar_ValueIterator ノードをビルド
+#add_executable(Astar_ValueIterator_node src/Astar_ValueIterator.cpp)
+#add_dependencies(Astar_ValueIterator_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#target_link_libraries(Astar_ValueIterator_node ${catkin_LIBRARIES})
 
 #############
 ## Install ##
