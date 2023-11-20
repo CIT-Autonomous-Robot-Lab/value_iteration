@@ -77,7 +77,7 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msg
   int start_x = -3.0;
   int start_y = 1.0;
   Node start_node(start_x, start_y);
-  ROS_INFO("Start node: (%f, %f)", start_node.x, start_node.y);
+  ROS_INFO("Start node: (%d, %d)", start_node.x, start_node.y);
 
   // ゴールノード
   goal_x_ = goal.position.x;
@@ -91,7 +91,7 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msg
   //Node goal_node;
   //goal_node.x = goal_x_;
   //goal_node.y = goal_y_;
-  ROS_INFO("Goal node: (%f, %f)",  goal_node.x,  goal_node.y);
+  ROS_INFO("Goal node: (%d, %d)",  goal_node.x,  goal_node.y);
 
   // openリスト
   std::vector<Node> open_list;
@@ -109,7 +109,7 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msg
     // openリストから評価値が最小のノードを取得
     Node current_node = getMinimumFValueNode(open_list);
 
-    ROS_INFO("Current node: (%f, %f, %f)", current_node.x, current_node.y, current_node.f);
+    ROS_INFO("Current node: (%d, %d, %f)", current_node.x, current_node.y, current_node.f);
 
     // ゴールチェック
     if (isGoalNode(current_node, goal_node)) 
@@ -227,13 +227,21 @@ void Astar_ValueIterator::addOrUpdateOpenList(std::vector<Node>& open, Node& nod
 std::vector<geometry_msgs::Pose> Astar_ValueIterator::calcFinalPath(const Node& goal, const std::vector<Node>& closed) {
   std::vector<geometry_msgs::Pose> path;
   Node current = goal;
-  while(current.parent != nullptr) {
+  while (current.parent != nullptr) {
+    ROS_INFO("Adding node to path: (%d, %d)", current.x, current.y);
     geometry_msgs::Pose pose;
     pose.position.x = current.x;
     pose.position.y = current.y;
     path.insert(path.begin(), pose);
     current = *(current.parent);
   }
+  // Add the start node to the path
+  ROS_INFO("Adding start node to path: (%d, %d)", current.x, current.y);
+  geometry_msgs::Pose start_pose;
+  start_pose.position.x = current.x;
+  start_pose.position.y = current.y;
+  path.insert(path.begin(), start_pose);
+
   return path;
 }
 

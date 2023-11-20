@@ -9,8 +9,8 @@ namespace value_iteration{
 
 class Node {
 public:
-    double x; // ノードの x 座標
-    double y; // ノードの y 座標
+    int x; // ノードの x 座標
+    int y; // ノードの y 座標
     double g; // スタートからの実際のコスト
     double h; // ヒューリスティック推定コスト
     double f; // 総コスト
