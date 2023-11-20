@@ -206,11 +206,6 @@ int ValueIterator::toIndex(int ix, int iy, int it)
 	return it + ix*cell_num_t_ + iy*(cell_num_t_*cell_num_x_);
 }
 
-bool ValueIterator::inMapArea(int ix, int iy)
-{
-	return ix >= 0 and ix < cell_num_x_ and iy >= 0 and iy < cell_num_y_;
-}
-
 uint64_t ValueIterator::actionCost(State &s, Action &a)
 {
 	uint64_t cost = 0;
