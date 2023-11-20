@@ -140,16 +140,28 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 	geometry_msgs::Pose start_pose;
     geometry_msgs::Pose goal_pose;
 
-    start_pose.position = goal->goal.pose.position;
-    start_pose.orientation = goal->goal.pose.orientation;
-    goal_pose = start_pose;
+    //start_pose.position = goal->goal.pose.position;
+    //start_pose.orientation = goal->goal.pose.orientation;
+    //goal_pose = start_pose;
+	auto &ori = goal->goal.pose.orientation;	
+	tf::Quaternion q(ori.x, ori.y, ori.z, ori.w);
+	double roll, pitch, yaw;
+	tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+	int t = (int)(yaw*180/M_PI);
+	vi_->setGoal(goal->goal.pose.position.x, goal->goal.pose.position.y);
+
+	double goal_x = goal->goal.pose.position.x;
+	double goal_y = goal->goal.pose.position.y;
+
+	goal_pose.position.x = goal_x;
+  	goal_pose.position.y = goal_y;
 	auto path = vi_->calculateAStarPath(map, start_pose, goal_pose);
 	
-    vi_->astarValueIterationLoop(map);
+    //vi_->astarValueIterationLoop(map);
 
-	vector<thread> ths;
-	for(int t=0; t<vi_->thread_num_; t++)
-		ths.push_back(thread(&ValueIterator::valueIterationWorker, vi_.get(), INT_MAX, t));
+//	vector<thread> ths;
+//	for(int t=0; t<vi_->thread_num_; t++)
+//		ths.push_back(thread(&ValueIterator::valueIterationWorker, vi_.get(), INT_MAX, t));
 
 	value_iteration::ViFeedback vi_feedback;
 
@@ -164,8 +176,8 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 	}
 	as_->publishFeedback(vi_feedback);
 
-	for(auto &th : ths)
-		th.join();
+//	for(auto &th : ths)
+//		th.join();
 
 	vi_->setCalculated();
 	ROS_INFO("VALUE ITERATION END");
@@ -181,7 +193,6 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 	vi_result.finished = vi_->arrived() or (not online_);
 	as_->setSucceeded(vi_result);
 }
-
 
 void ViNode::pubValueFunction(void)
 {
@@ -212,11 +223,11 @@ void ViNode::decision(void)
 	cmd_vel.linear.x = 0.0;
 	cmd_vel.angular.z = 0.0;
 
-	Action *a = vi_->posToAction(x_, y_, yaw_);
-	if(a != NULL){
-		cmd_vel.linear.x = a->_delta_fw;
-		cmd_vel.angular.z = a->_delta_rot/180*M_PI;
-	}
+	//Action *a = vi_->posToAction(x_, y_, yaw_);
+	//if(a != NULL){
+	//	cmd_vel.linear.x = a->_delta_fw;
+	//	cmd_vel.angular.z = a->_delta_rot/180*M_PI;
+	//}
 	pub_cmd_vel_.publish(cmd_vel);
 }
 
