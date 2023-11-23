@@ -2,9 +2,10 @@
 
 namespace value_iteration{
 
-Astar_ValueIterator::Astar_ValueIterator(std::vector<Action> &actions, int thread_num) : ValueIterator(actions, thread_num)
+Astar_ValueIterator::Astar_ValueIterator(std::vector<Action> &actions, int thread_num) : ValueIterator(actions, thread_num) 
 {
-    //ROS_INFO("SET ASTAR");
+  //states_.resize(cell_num_x_ * cell_num_y_ * cell_num_t_, State(0, 0, 0, nav_msgs::OccupancyGrid(), 0, 0, 0));
+  ROS_INFO("SET ASTAR");
 }
 
 void Astar_ValueIterator::setMapWithOccupancyGrid(nav_msgs::OccupancyGrid &map, int theta_cell_num,
@@ -27,6 +28,10 @@ void Astar_ValueIterator::setMapWithOccupancyGrid(nav_msgs::OccupancyGrid &map, 
 	map_origin_x_ = map.info.origin.position.x;
 	map_origin_y_ = map.info.origin.position.y;
 	map_origin_quat_ = map.info.origin.orientation;
+
+  //states_.clear();
+	//int margin = (int)ceil(safety_radius/xy_resolution_);
+  //setState(map, safety_radius, safety_radius_penalty);
     
 }
 
@@ -73,6 +78,7 @@ double Astar_ValueIterator::calculateHeuristic(const Node& node, const Node& goa
 
 std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msgs::OccupancyGrid &map, geometry_msgs::Pose start, geometry_msgs::Pose goal)
 {
+  //std::vector<Node> path;
   // 開始ノード
   int start_x = -3.0;
   int start_y = 1.0;
@@ -80,12 +86,14 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msg
   ROS_INFO("Start node: (%d, %d)", start_node.x, start_node.y);
 
   // ゴールノード
-  goal_x_ = goal.position.x;
-  goal_y_ = goal.position.y;
-  ROS_INFO("Goal: (%f, %f)", goal_x_, goal_y_);
+  //goal_x_ = goal.position.x;
+  //goal_y_ = goal.position.y;
+  //ROS_INFO("Goal: (%f, %f)", goal_x_, goal_y_);
 
-  int goal_x_int = (int)goal_x_; 
-  int goal_y_int = (int)goal_y_;
+  //int goal_x_int = (int)goal_x_; 
+  //int goal_y_int = (int)goal_y_;
+  int goal_x_int = (int)goal.position.x; 
+  int goal_y_int = (int)goal.position.y;
   Node goal_node(goal_x_int, goal_y_int);
 
   //Node goal_node;
@@ -152,6 +160,14 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msg
   auto path = calcFinalPath(goal_node, closed_list);
 
   ROS_INFO("Path found with %lu nodes", path.size());
+
+  astarPath = path;
+
+  //ROS_INFO("A* Path found with %lu nodes", m_astarPath.size());
+
+  //std::vector<int> stateIndexPath = convertAstarPathToStateIndex(astarPath);
+
+  //valueIterationAstarPath(stateIndexPath);
 
   return path;
 
@@ -313,12 +329,98 @@ void Astar_ValueIterator::cellDelta(double x, double y, double t, int &ix, int &
 	it = (int)floor(t / t_resolution_);
 }
 
-
-// 障害物か判定 
-
 // A*で計算されたパスに対して局所的な価値反復を実行
 
+void Astar_ValueIterator::valueIterationAstarPathWorker(const vector<Node>& astarPath) 
+{
 
+  // 状態空間インデックスへの変換
+  vector<int> indexPath = convertAstarPathToStateIndex(astarPath);
+  
+  // 価値反復
+  valueIterationAstarPath(indexPath); 
+
+}
+
+void Astar_ValueIterator::valueIterationAstarPath(const vector<int>& stateIndexPath) 
+{
+
+  for(int stateIndex : stateIndexPath) {
+    
+    State& s = states_[stateIndex]; 
+
+    // 価値更新前の値をログ出力
+    ROS_INFO("State cost before: %lu", s.total_cost_);
+    
+    // 最小コストアクションとコストを求める
+	  uint64_t min_cost = ValueIterator::max_cost_;
+	  Action *min_action = NULL;
+    
+	  for(auto &a : actions_){
+		  int64_t c = actionCostAstar(s, a);
+		  if(c < min_cost){
+			  min_cost = c;
+			  min_action = &a;
+		  }
+    }
+    
+    // 価値関数を更新
+	  int64_t delta = min_cost - s.total_cost_;
+	  s.total_cost_ = min_cost;
+	  s.optimal_action_ = min_action;
+
+    // 価値更新後の値をログ出力  
+    ROS_INFO("State cost after: %lu", s.total_cost_);
+    
+  }
+
+}
+
+// A*パス(ノードリスト)を状態空間インデックスのベクトルに変換
+vector<int> Astar_ValueIterator::convertAstarPathToStateIndex(const vector<Node>& astarPath) 
+{
+  vector<int> stateIndexPath;
+
+  ROS_INFO("A* path in state index:");
+
+  for(const auto& node : astarPath) {
+    int x = node.x;
+    int y = node.y; 
+    int thetaIndex = 0; // ここは適宜thetaをインデックスに変換
+
+    // ValueIteratorのtoIndexメソッドを呼び出して状態空間インデックスを求める
+    int stateIndex = toIndex(x, y, thetaIndex); 
+
+    stateIndexPath.push_back(stateIndex);
+    ROS_INFO("%d", stateIndex); 
+  }
+
+  return stateIndexPath;
+}
+
+uint64_t Astar_ValueIterator::actionCostAstar(State &s, Action &a)
+{
+	uint64_t cost = 0;
+	for(auto &tran : a._state_transitions[s.it_]){
+		int ix = s.ix_ + tran._dix;
+		if(ix < 0 or ix >= cell_num_x_)
+			return max_cost_;
+
+		int iy = s.iy_ + tran._diy;
+		if(iy < 0 or iy >= cell_num_y_)
+			return max_cost_;
+
+		int it = (tran._dit + cell_num_t_)%cell_num_t_;
+
+		auto &after_s = states_[toIndex(ix, iy, it)];
+		if(not after_s.free_)
+			return max_cost_;
+
+		cost += ( after_s.total_cost_ + after_s.penalty_ + after_s.local_penalty_ ) * tran._prob;
+	}
+
+	return cost >> prob_base_bit_;
+}
 // A*で計算されたパスに対して価値反復を行うメソッド
 
 

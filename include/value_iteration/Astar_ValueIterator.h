@@ -58,10 +58,29 @@ public:
 
     void setGoal(double goal_x, double goal_y);
 
+    vector<int> convertAstarPathToStateIndex(const vector<Node>& astarPath);
+
+    uint64_t actionCostAstar(State &s, Action &a);
+
+    void valueIterationAstarPath(const vector<int>& stateIndexPath);
+
+    void valueIterationAstarPathWorker(const vector<Node>& astarPath);
+
+    //void setPathStates(const nav_msgs::OccupancyGrid &map, double safety_radius, double safety_radius_penalty);
+
+    //uint64_t Astar_valueIteration(State &s);
+    //uint64_t actionCost(State &s, Action &a);
+    //void Astar_valueIterationWorker(int id);
+    //void astarValueIterationLoop(void);
+    //State convertPoseToState(const geometry_msgs::Pose &pose);
+
 private:
   double goal_x_; 
-  double goal_y_;            
-
+  double goal_y_;       
+  std::vector<geometry_msgs::Pose> astarPath; // 経路を保持する変数
+  //std::vector<State> states_;
+  //uint64_t actionCostAstar(State &s, Action &a);
+  //void Astar_valueIterationWorker(int times, int id);
     
 };
 
