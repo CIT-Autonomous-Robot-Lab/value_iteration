@@ -171,6 +171,7 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 	}
 
 	vi_->valueIterationAstarPathWorker(nodePath);
+	
 
 
 	//vi_->setPathStates(map, radius, penalty);
@@ -194,8 +195,8 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 	}
 	as_->publishFeedback(vi_feedback);
 
-//	for(auto &th : ths)
-//		th.join();
+	//for(auto &th : ths)
+	//	th.join();
 
 	vi_->setCalculated();
 	ROS_INFO("VALUE ITERATION END");
@@ -215,7 +216,7 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 void ViNode::pubValueFunction(void)
 {
 	nav_msgs::OccupancyGrid map;//, local_map;
-	vi_->makeAstarValueFunctionMap(map, cost_drawing_threshold_, x_, y_, yaw_);  //Astar用に変更
+	vi_->makeValueFunctionMap(map, cost_drawing_threshold_, x_, y_, yaw_);  //Astar用に変更
 	pub_astar_value_function_.publish(map);
 }
 

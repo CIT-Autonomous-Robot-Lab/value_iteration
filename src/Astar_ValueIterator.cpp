@@ -1,4 +1,5 @@
 #include "value_iteration/Astar_ValueIterator.h"
+#include <thread>
 
 namespace value_iteration{
 
@@ -28,6 +29,9 @@ void Astar_ValueIterator::setMapWithOccupancyGrid(nav_msgs::OccupancyGrid &map, 
 	map_origin_x_ = map.info.origin.position.x;
 	map_origin_y_ = map.info.origin.position.y;
 	map_origin_quat_ = map.info.origin.orientation;
+
+  setState(map, safety_radius, safety_radius_penalty);
+	setStateTransition();
 
   //states_.clear();
 	//int margin = (int)ceil(safety_radius/xy_resolution_);
@@ -338,7 +342,9 @@ void Astar_ValueIterator::valueIterationAstarPathWorker(const vector<Node>& asta
   vector<int> indexPath = convertAstarPathToStateIndex(astarPath);
   
   // 価値反復
-  valueIterationAstarPath(indexPath); 
+  while(status_ != "canceled" and status_ != "goal"){
+    valueIterationAstarPath(indexPath); 
+  }
 
 }
 
@@ -350,7 +356,7 @@ void Astar_ValueIterator::valueIterationAstarPath(const vector<int>& stateIndexP
     State& s = states_[stateIndex]; 
 
     // 価値更新前の値をログ出力
-    ROS_INFO("State cost before: %lu", s.total_cost_);
+    //ROS_INFO("State cost before: %lu", s.total_cost_);
     
     // 最小コストアクションとコストを求める
 	  uint64_t min_cost = ValueIterator::max_cost_;
@@ -369,8 +375,9 @@ void Astar_ValueIterator::valueIterationAstarPath(const vector<int>& stateIndexP
 	  s.total_cost_ = min_cost;
 	  s.optimal_action_ = min_action;
 
+
     // 価値更新後の値をログ出力  
-    ROS_INFO("State cost after: %lu", s.total_cost_);
+    //ROS_INFO("State cost after: %lu", s.total_cost_);
     
   }
 
@@ -402,6 +409,9 @@ uint64_t Astar_ValueIterator::actionCostAstar(State &s, Action &a)
 {
 	uint64_t cost = 0;
 	for(auto &tran : a._state_transitions[s.it_]){
+
+    ROS_INFO("Transition: dix=%d, diy=%d, dit=%d", tran._dix, tran._diy, tran._dit);
+
 		int ix = s.ix_ + tran._dix;
 		if(ix < 0 or ix >= cell_num_x_)
 			return max_cost_;
@@ -421,9 +431,70 @@ uint64_t Astar_ValueIterator::actionCostAstar(State &s, Action &a)
 
 	return cost >> prob_base_bit_;
 }
-// A*で計算されたパスに対して価値反復を行うメソッド
 
+void Astar_ValueIterator::setStateTransition(void)
+{
+	std::vector<StateTransition> theta_state_transitions;
+	for(auto &a : actions_)
+		for(int t=0; t<cell_num_t_; t++)
+			a._state_transitions.push_back(theta_state_transitions);
 
+	std::vector<thread> ths;
+	for(int t=0; t<cell_num_t_; t++)
+		ths.push_back(thread(&Astar_ValueIterator::setStateTransitionWorker, this, t));
 
+	for(auto &th : ths)
+		th.join();
+}
+
+void Astar_ValueIterator::setStateTransitionWorker(int it)
+{
+	for(auto &a : actions_)
+		setStateTransitionWorkerSub(a, it);
+}
+
+void Astar_ValueIterator::noNoiseStateTransition(Action &a, 
+	double from_x, double from_y, double from_t, double &to_x, double &to_y, double &to_t)
+{
+	double ang = from_t / 180 * M_PI;
+	to_x = from_x + a._delta_fw*cos(ang);
+	to_y = from_y + a._delta_fw*sin(ang);
+	to_t = from_t + a._delta_rot;
+	while(to_t < 0.0)
+		to_t += 360.0;
+}
+
+void Astar_ValueIterator::setStateTransitionWorkerSub(Action &a, int it)
+{
+	double theta_origin = it*t_resolution_;
+	const int xy_sample_num = 1<<ValueIterator::resolution_xy_bit_;
+	const int t_sample_num = 1<<ValueIterator::resolution_t_bit_;
+	const double xy_step = xy_resolution_/xy_sample_num;
+	const double t_step = t_resolution_/t_sample_num;
+
+	for(double oy=0.5*xy_step; oy<xy_resolution_; oy+=xy_step){
+		for(double ox=0.5*xy_step; ox<xy_resolution_; ox+=xy_step){
+			for(double ot=0.5*t_step; ot<t_resolution_; ot+=t_step){
+
+				//遷移後の姿勢
+				double dx, dy, dt;
+				noNoiseStateTransition(a, ox, oy, ot + theta_origin, dx, dy, dt);
+				int dix, diy, dit;
+				cellDelta(dx, dy, dt, dix, diy, dit); 
+
+				bool exist = false;
+				for(auto &s : a._state_transitions[it]){
+					if(s._dix == dix and s._diy == diy and s._dit == dit){
+						s._prob++;
+						exist = true;
+						break;
+					}
+				}
+				if(not exist)
+					a._state_transitions[it].push_back(StateTransition(dix, diy, dit, 1));
+			}
+		}
+	}
+}
 
 } // namespace value_iteration

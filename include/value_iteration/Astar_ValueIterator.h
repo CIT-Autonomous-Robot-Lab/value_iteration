@@ -66,6 +66,14 @@ public:
 
     void valueIterationAstarPathWorker(const vector<Node>& astarPath);
 
+    void setStateTransitionWorkerSub(Action &a, int it);
+
+    void setStateTransitionWorker(int it);
+
+    void setStateTransition(void);
+
+    void noNoiseStateTransition(Action &a, double from_x, double from_y, double from_t, double &to_x, double &to_y, double &to_t);
+
     //void setPathStates(const nav_msgs::OccupancyGrid &map, double safety_radius, double safety_radius_penalty);
 
     //uint64_t Astar_valueIteration(State &s);
