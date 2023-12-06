@@ -57,10 +57,10 @@ private:
 	nav_msgs::OccupancyGrid map; // メンバー変数として地図を宣言
 
 	void executeVi(const value_iteration::ViGoalConstPtr &goal);
-	//bool servePolicy(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response);
-	//bool serveValue(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response);
+	bool servePolicy(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response);
+	bool serveValue(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response);
 
-	//void scanReceived(const sensor_msgs::LaserScan::ConstPtr &msg);
+	void scanReceived(const sensor_msgs::LaserScan::ConstPtr &msg);
 
 	void setActions(void);
 	void setMap(nav_msgs::GetMap::Response &res);

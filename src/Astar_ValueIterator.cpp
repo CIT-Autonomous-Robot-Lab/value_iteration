@@ -32,6 +32,7 @@ void Astar_ValueIterator::setMapWithOccupancyGrid(nav_msgs::OccupancyGrid &map, 
 
   setState(map, safety_radius, safety_radius_penalty);
 	setStateTransition();
+  //setSweepOrders();
 
   //states_.clear();
 	//int margin = (int)ceil(safety_radius/xy_resolution_);
@@ -184,6 +185,13 @@ void Astar_ValueIterator::setGoal(double goal_x, double goal_y)
 	goal_y_ = goal_y;
 
 	//ROS_INFO("GOAL: %f, %f", goal_x_, goal_y_);
+  // ここで初期コスト設定
+  //setStateValues();
+
+  // ステータスやスレッド情報のクリア
+  thread_status_.clear();
+  setStateValues();
+  status_ = "calculating";
 
 }
 
@@ -335,103 +343,6 @@ void Astar_ValueIterator::cellDelta(double x, double y, double t, int &ix, int &
 
 // A*で計算されたパスに対して局所的な価値反復を実行
 
-void Astar_ValueIterator::valueIterationAstarPathWorker(const vector<Node>& astarPath) 
-{
-
-  // 状態空間インデックスへの変換
-  vector<int> indexPath = convertAstarPathToStateIndex(astarPath);
-  
-  // 価値反復
-  while(status_ != "canceled" and status_ != "goal"){
-    valueIterationAstarPath(indexPath); 
-  }
-
-}
-
-void Astar_ValueIterator::valueIterationAstarPath(const vector<int>& stateIndexPath) 
-{
-
-  for(int stateIndex : stateIndexPath) {
-    
-    State& s = states_[stateIndex]; 
-
-    // 価値更新前の値をログ出力
-    //ROS_INFO("State cost before: %lu", s.total_cost_);
-    
-    // 最小コストアクションとコストを求める
-	  uint64_t min_cost = ValueIterator::max_cost_;
-	  Action *min_action = NULL;
-    
-	  for(auto &a : actions_){
-		  int64_t c = actionCostAstar(s, a);
-		  if(c < min_cost){
-			  min_cost = c;
-			  min_action = &a;
-		  }
-    }
-    
-    // 価値関数を更新
-	  int64_t delta = min_cost - s.total_cost_;
-	  s.total_cost_ = min_cost;
-	  s.optimal_action_ = min_action;
-
-
-    // 価値更新後の値をログ出力  
-    //ROS_INFO("State cost after: %lu", s.total_cost_);
-    
-  }
-
-}
-
-// A*パス(ノードリスト)を状態空間インデックスのベクトルに変換
-vector<int> Astar_ValueIterator::convertAstarPathToStateIndex(const vector<Node>& astarPath) 
-{
-  vector<int> stateIndexPath;
-
-  ROS_INFO("A* path in state index:");
-
-  for(const auto& node : astarPath) {
-    int x = node.x;
-    int y = node.y; 
-    int thetaIndex = 0; // ここは適宜thetaをインデックスに変換
-
-    // ValueIteratorのtoIndexメソッドを呼び出して状態空間インデックスを求める
-    int stateIndex = toIndex(x, y, thetaIndex); 
-
-    stateIndexPath.push_back(stateIndex);
-    ROS_INFO("%d", stateIndex); 
-  }
-
-  return stateIndexPath;
-}
-
-uint64_t Astar_ValueIterator::actionCostAstar(State &s, Action &a)
-{
-	uint64_t cost = 0;
-	for(auto &tran : a._state_transitions[s.it_]){
-
-    ROS_INFO("Transition: dix=%d, diy=%d, dit=%d", tran._dix, tran._diy, tran._dit);
-
-		int ix = s.ix_ + tran._dix;
-		if(ix < 0 or ix >= cell_num_x_)
-			return max_cost_;
-
-		int iy = s.iy_ + tran._diy;
-		if(iy < 0 or iy >= cell_num_y_)
-			return max_cost_;
-
-		int it = (tran._dit + cell_num_t_)%cell_num_t_;
-
-		auto &after_s = states_[toIndex(ix, iy, it)];
-		if(not after_s.free_)
-			return max_cost_;
-
-		cost += ( after_s.total_cost_ + after_s.penalty_ + after_s.local_penalty_ ) * tran._prob;
-	}
-
-	return cost >> prob_base_bit_;
-}
-
 void Astar_ValueIterator::setStateTransition(void)
 {
 	std::vector<StateTransition> theta_state_transitions;
@@ -496,5 +407,157 @@ void Astar_ValueIterator::setStateTransitionWorkerSub(Action &a, int it)
 		}
 	}
 }
+
+void Astar_ValueIterator::setState(const nav_msgs::OccupancyGrid &map, double safety_radius, double safety_radius_penalty)
+{
+	states_.clear();
+	int margin = (int)ceil(safety_radius/xy_resolution_);
+
+	for(int y=0; y<cell_num_y_; y++)
+		for(int x=0; x<cell_num_x_; x++)
+			for(int t=0; t<cell_num_t_; t++)
+				states_.push_back(State(x, y, t, map, margin, safety_radius_penalty, cell_num_x_));
+}
+
+void Astar_ValueIterator::setStateValues(void)
+{
+	for(auto &s : states_){
+		/* goal distance check */
+		double x0 = s.ix_*xy_resolution_ + map_origin_x_;
+		double y0 = s.iy_*xy_resolution_ + map_origin_y_;
+		double r0 = (x0 - goal_x_)*(x0 - goal_x_) + (y0 - goal_y_)*(y0 - goal_y_);
+
+		double x1 = x0 + xy_resolution_;
+		double y1 = y0 + xy_resolution_;
+		double r1 = (x1 - goal_x_)*(x1 - goal_x_) + (y1 - goal_y_)*(y1 - goal_y_);
+
+		s.final_state_ = r0 < goal_margin_radius_*goal_margin_radius_ 
+			       && r1 < goal_margin_radius_*goal_margin_radius_
+			       && s.free_;
+
+		/* orientation check */
+		int t0 = s.it_*t_resolution_;
+		int t1 = (s.it_+1)*t_resolution_;
+		int goal_t_2 = goal_t_ > 180 ? goal_t_ - 360 : goal_t_ + 360;
+
+		s.final_state_ &= 
+			(goal_t_ - goal_margin_theta_ <= t0 and t1 <= goal_t_ + goal_margin_theta_) or 
+			(goal_t_2 - goal_margin_theta_ <= t0 and t1 <= goal_t_2 + goal_margin_theta_);
+	}
+
+	for(auto &s : states_){
+		s.total_cost_ = s.final_state_ ? 0 : max_cost_;
+		s.local_penalty_ = 0;
+		s.optimal_action_ = NULL;
+	}
+}
+
+void Astar_ValueIterator::valueIterationAstarPathWorker(const vector<Node>& nodePath) 
+{
+  // 状態空間インデックスへの変換
+  vector<int> indexPath = convertAstarPathToStateIndex(nodePath);
+
+  //thread_status_[id]._delta = DBL_MAX; 
+  //uint64_t max_delta = 0;
+  //State& s = states_[stateIndex];
+  
+  // 価値反復
+  while(status_ != "canceled" and status_ != "goal"){
+    //ROS_INFO("LET V ASTAR");
+
+    for(int stateIndex : indexPath){
+
+      //State& s = states_[stateIndex];
+      valueIterationAstarPath(states_[stateIndex]);
+
+      //max_delta = valueIterationAstarPath(states_[stateIndex]);
+      //thread_status_[id]._delta = (double)(max_delta >> prob_base_bit_);
+    }
+    
+  }
+
+}
+
+uint64_t Astar_ValueIterator::valueIterationAstarPath(State &s)
+{
+	//if((not s.free_) or s.final_state_)
+	//	return 0;
+  
+
+	uint64_t min_cost = Astar_ValueIterator::max_cost_;
+	Action *min_action = NULL;
+	for(auto &a : actions_){
+		int64_t c = actionCostAstar(s, a);
+		if(c < min_cost){
+			min_cost = c;
+			min_action = &a;
+		}
+	}
+
+	int64_t delta = min_cost - s.total_cost_;
+	s.total_cost_ = min_cost;
+	s.optimal_action_ = min_action;
+  //ROS_INFO("After update: cost=%lu", s.total_cost_);
+
+	return delta > 0 ? delta : -delta;
+}
+
+// A*パス(ノードリスト)を状態空間インデックスのベクトルに変換
+vector<int> Astar_ValueIterator::convertAstarPathToStateIndex(const vector<Node>& nodePath) 
+{
+    // ここでA*パス計算を実行
+  //nodePath = calculateAStarPath(map, start, goal);
+  vector<int> stateIndexPath;
+
+  ROS_INFO("A* path in state index:");
+
+  for(const auto& node : nodePath) {
+    int x = node.x;
+    int y = node.y; 
+    int thetaIndex = 0; // ここは適宜thetaをインデックスに変換
+
+    // ValueIteratorのtoIndexメソッドを呼び出して状態空間インデックスを求める
+    int stateIndex = toIndex(x, y, thetaIndex); 
+
+    stateIndexPath.push_back(stateIndex);
+    ROS_INFO("%d", stateIndex); 
+  }
+
+  return stateIndexPath;
+}
+
+uint64_t Astar_ValueIterator::actionCostAstar(State &s, Action &a)
+{
+	uint64_t cost = 0;
+	for(auto &tran : a._state_transitions[s.it_]){
+
+    //ROS_INFO("Transition: dix=%d, diy=%d, dit=%d", tran._dix, tran._diy, tran._dit);
+    //ROS_INFO("Before transition: cost=%lu", s.total_cost_);
+
+		int ix = s.ix_ + tran._dix;
+		if(ix < 0 or ix >= cell_num_x_)
+			return max_cost_;
+
+		int iy = s.iy_ + tran._diy;
+		if(iy < 0 or iy >= cell_num_y_)
+			return max_cost_;
+
+		int it = (tran._dit + cell_num_t_)%cell_num_t_;
+
+    //int next_index = toIndex(ix, iy, it);
+    //ROS_INFO("Next state index: %d", next_index);
+
+		auto &after_s = states_[toIndex(ix, iy, it)];
+    //ROS_INFO("Next state cost: %lu, penalty: %lu",
+    //          after_s.total_cost_, after_s.penalty_);
+		if(not after_s.free_)
+			return max_cost_;
+
+		cost += ( after_s.total_cost_ + after_s.penalty_ + after_s.local_penalty_ ) * tran._prob;
+	}
+
+	return cost >> prob_base_bit_;
+}
+
 
 } // namespace value_iteration

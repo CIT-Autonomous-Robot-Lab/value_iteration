@@ -85,7 +85,7 @@ void ViNode::setCommunication(void)
 		ROS_INFO("SET ONLINE");
 		pub_cmd_vel_ = nh_.advertise<geometry_msgs::Twist>("cmd_vel", 2, true);
 		//sub_pose_ = nh_.subscribe("mcl_pose", 2, &ViNode::poseReceived, this);
-		//sub_laser_scan_ = nh_.subscribe("scan", 2, &ViNode::scanReceived, this);
+		sub_laser_scan_ = nh_.subscribe("scan", 2, &ViNode::scanReceived, this);
 	}
 
 	//pub_value_function_ = nh_.advertise<nav_msgs::OccupancyGrid>("value_function", 2, true);
@@ -95,8 +95,8 @@ void ViNode::setCommunication(void)
 	as_.reset(new actionlib::SimpleActionServer<value_iteration::ViAction>( nh_, "vi_controller",
 				boost::bind(&ViNode::executeVi, this, _1), false));
 	as_->start();
-	//srv_policy_ = nh_.advertiseService("/policy", &ViNode::servePolicy, this);
-	//srv_value_ = nh_.advertiseService("/value", &ViNode::serveValue, this);
+	srv_policy_ = nh_.advertiseService("/policy", &ViNode::servePolicy, this);
+	srv_value_ = nh_.advertiseService("/value", &ViNode::serveValue, this);
 }
 
 void ViNode::setActions(void)
@@ -117,22 +117,22 @@ void ViNode::setActions(void)
 	}
 }
 
-//void ViNode::scanReceived(const sensor_msgs::LaserScan::ConstPtr &msg)
-//{
+void ViNode::scanReceived(const sensor_msgs::LaserScan::ConstPtr &msg)
+{
 	//vi_->setLocalCost(msg, x_, y_, yaw_);
-//}
+}
 
-//bool ViNode::servePolicy(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response)
-//{
-	//vi_->policyWriter(response);
-	//return true;
-//}
+bool ViNode::servePolicy(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response)
+{
+	vi_->policyWriter(response);
+	return true;
+}
 
-//bool ViNode::serveValue(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response)
-//{
-	//vi_->valueFunctionWriter(response);
-	//return true;
-//}
+bool ViNode::serveValue(grid_map_msgs::GetGridMap::Request& request, grid_map_msgs::GetGridMap::Response& response)
+{
+	vi_->valueFunctionWriter(response);
+	return true;
+}
 
 void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 {
@@ -140,9 +140,6 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 	geometry_msgs::Pose start_pose;
     geometry_msgs::Pose goal_pose;
 
-    //start_pose.position = goal->goal.pose.position;
-    //start_pose.orientation = goal->goal.pose.orientation;
-    //goal_pose = start_pose;
 	auto &ori = goal->goal.pose.orientation;	
 	tf::Quaternion q(ori.x, ori.y, ori.z, ori.w);
 	double roll, pitch, yaw;
@@ -170,17 +167,16 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
   		nodePath.push_back(node); 
 	}
 
-	vi_->valueIterationAstarPathWorker(nodePath);
-	
-
+	//vi_->valueIterationAstarPathWorker(nodePath);
+	//vector<int> indexPath = vi_->convertAstarPathToStateIndex(path);
 
 	//vi_->setPathStates(map, radius, penalty);
 	
     //vi_->astarValueIterationLoop(map);
 
-//	vector<thread> ths;
-//	for(int t=0; t<vi_->thread_num_; t++)
-//		ths.push_back(thread(&ValueIterator::valueIterationWorker, vi_.get(), INT_MAX, t));
+	//vector<thread> ths;
+	//for(int t=0; t<vi_->thread_num_; t++)
+	//	ths.push_back(thread(&Astar_ValueIterator::valueIterationAstarPathWorker, vi_.get(), nodePath, t));
 
 	value_iteration::ViFeedback vi_feedback;
 
@@ -216,7 +212,7 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 void ViNode::pubValueFunction(void)
 {
 	nav_msgs::OccupancyGrid map;//, local_map;
-	vi_->makeValueFunctionMap(map, cost_drawing_threshold_, x_, y_, yaw_);  //Astar用に変更
+	vi_->makeAstarValueFunctionMap(map, cost_drawing_threshold_, x_, y_, yaw_);  //Astar用に変更
 	pub_astar_value_function_.publish(map);
 }
 
