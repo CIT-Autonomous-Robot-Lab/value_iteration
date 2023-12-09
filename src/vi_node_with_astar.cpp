@@ -167,7 +167,7 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
   		nodePath.push_back(node); 
 	}
 
-	//vi_->valueIterationAstarPathWorker(nodePath);
+	vi_->valueIterationAstarPathWorker(nodePath);
 	//vector<int> indexPath = vi_->convertAstarPathToStateIndex(path);
 
 	//vi_->setPathStates(map, radius, penalty);

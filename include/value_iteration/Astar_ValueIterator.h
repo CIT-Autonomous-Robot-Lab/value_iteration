@@ -81,6 +81,8 @@ public:
 
     void setState(const nav_msgs::OccupancyGrid &map, double safety_radius, double safety_radius_penalty);
 
+    int getIndex(int x, int y);
+
     //void setSweepOrders(void);
 
     //bool finished(std_msgs::UInt32MultiArray &sweep_times, std_msgs::Float32MultiArray &deltas);

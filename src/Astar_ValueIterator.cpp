@@ -141,7 +141,7 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msg
     // 隣接ノードを取得
     std::vector<Node> adjacent_nodes = getAdjacentNodes(current_node, map);
 
-    //ROS_INFO("Found %lu adjacent nodes", adjacent_nodes.size());
+    ROS_INFO("Found %lu adjacent nodes", adjacent_nodes.size());
         
     for (Node& node : adjacent_nodes) 
     {
@@ -273,10 +273,10 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calcFinalPath(const Node& 
   return path;
 }
 
-bool Astar_ValueIterator::isObstacle(int x, int y, const nav_msgs::OccupancyGrid& map) {
+//bool Astar_ValueIterator::isObstacle(int x, int y, const nav_msgs::OccupancyGrid& map) {
   // mapデータから障害物か判定 
-  return map.data[y * map.info.width + x] == 250; 
-}
+//  return map.data[y * map.info.width + x] == 255; 
+//}
 
 // map内に含まれるか判定
 bool Astar_ValueIterator::isInsideMap(int ix, int iy) 
@@ -284,6 +284,17 @@ bool Astar_ValueIterator::isInsideMap(int ix, int iy)
   //ROS_INFO("Added map at %d", cell_num_x_);
   //return ix < cell_num_x_ and iy < cell_num_y_ and ix != 0 and iy !=0;
   return ix < cell_num_x_ and iy < cell_num_y_;
+}
+
+int Astar_ValueIterator::getIndex(int x, int y) 
+{
+  int index = y * cell_num_x_ + x; 
+
+  if (index < 0) {
+    // 負の場合のエラー処理 
+    index = 0; // or some positive value
+  }
+  return index; 
 }
 
 // 隣接ノードを取得
@@ -307,9 +318,11 @@ std::vector<Node> Astar_ValueIterator::getAdjacentNodes(const Node& current, con
         //double margin_penalty = 10.0; 
         //State state(nx, ny, 0, map, margin, margin_penalty, cell_num_x_);
         //State state(nx, ny, 0, map); 
- 
+
+        int index = getIndex(nx, ny); 
+        //ROS_INFO("Accessing states_[%d]", index); 
         // 障害物なしの場合、ノードを追加
-        if(isInsideMap(nx, ny) && !isObstacle(nx, ny, map)) {
+        if(isInsideMap(nx, ny) && states_[index].free_) {
           Node node(nx, ny);
           adjacent_nodes.push_back(node);
         }
@@ -465,10 +478,10 @@ void Astar_ValueIterator::valueIterationAstarPathWorker(const vector<Node>& node
   while(status_ != "canceled" and status_ != "goal"){
     //ROS_INFO("LET V ASTAR");
 
-    for(int stateIndex : indexPath){
+    for(int stateIndexPath : indexPath){
 
       //State& s = states_[stateIndex];
-      valueIterationAstarPath(states_[stateIndex]);
+      valueIterationAstarPath(states_[stateIndexPath]);
 
       //max_delta = valueIterationAstarPath(states_[stateIndex]);
       //thread_status_[id]._delta = (double)(max_delta >> prob_base_bit_);
@@ -480,9 +493,10 @@ void Astar_ValueIterator::valueIterationAstarPathWorker(const vector<Node>& node
 
 uint64_t Astar_ValueIterator::valueIterationAstarPath(State &s)
 {
-	//if((not s.free_) or s.final_state_)
-	//	return 0;
-  
+	//ROS_INFO("Free? %d", s.final_state_); 
+  if((not s.free_) or s.final_state_)
+    //ROS_INFO("false");
+		return 0;
 
 	uint64_t min_cost = Astar_ValueIterator::max_cost_;
 	Action *min_action = NULL;
@@ -497,7 +511,7 @@ uint64_t Astar_ValueIterator::valueIterationAstarPath(State &s)
 	int64_t delta = min_cost - s.total_cost_;
 	s.total_cost_ = min_cost;
 	s.optimal_action_ = min_action;
-  //ROS_INFO("After update: cost=%lu", s.total_cost_);
+  ROS_INFO("After update: cost=%lu", s.total_cost_);
 
 	return delta > 0 ? delta : -delta;
 }
@@ -508,8 +522,9 @@ vector<int> Astar_ValueIterator::convertAstarPathToStateIndex(const vector<Node>
     // ここでA*パス計算を実行
   //nodePath = calculateAStarPath(map, start, goal);
   vector<int> stateIndexPath;
+  int stateIndex = 0;
 
-  ROS_INFO("A* path in state index:");
+  //ROS_INFO("A* path in state index:");
 
   for(const auto& node : nodePath) {
     int x = node.x;
@@ -517,11 +532,16 @@ vector<int> Astar_ValueIterator::convertAstarPathToStateIndex(const vector<Node>
     int thetaIndex = 0; // ここは適宜thetaをインデックスに変換
 
     // ValueIteratorのtoIndexメソッドを呼び出して状態空間インデックスを求める
-    int stateIndex = toIndex(x, y, thetaIndex); 
+    stateIndex = toIndex(x, y, thetaIndex); 
 
     stateIndexPath.push_back(stateIndex);
-    ROS_INFO("%d", stateIndex); 
+    //ROS_INFO("%d", stateIndex); 
   }
+  ROS_INFO("%d", stateIndex); 
+
+  //for(int index : stateIndexPath) {
+  //  ROS_INFO("%d", index); 
+  //}
 
   return stateIndexPath;
 }
