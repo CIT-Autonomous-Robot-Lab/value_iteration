@@ -152,22 +152,23 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 
 	goal_pose.position.x = goal_x;
   	goal_pose.position.y = goal_y;
+	ContinuousNode goal_node(goal_x, goal_y);
 
 	//double radius = 0.2;
   	//double penalty = 10.0;
-	auto path = vi_->calculateAStarPath(map, start_pose, goal_pose);
+	auto path = vi_->calculateAStarPath(start_pose, goal_node);
 
-	vector<Node> nodePath;
-	for(auto pose : path) {
-  		Node node; 
-  		node.x = pose.position.x;
-  		node.y = pose.position.y;
+	//vector<Node> nodePath;
+	//for(auto pose : path) {
+  	//	Node node; 
+  	//	node.x = pose.position.x;
+  	//	node.y = pose.position.y;
   		// その他必要な情報を詰める
   
-  		nodePath.push_back(node); 
-	}
+  	//	nodePath.push_back(node); 
+	//}
 
-	vi_->valueIterationAstarPathWorker(nodePath);
+	//vi_->valueIterationAstarPathWorker(nodePath);
 	//vector<int> indexPath = vi_->convertAstarPathToStateIndex(path);
 
 	//vi_->setPathStates(map, radius, penalty);
@@ -212,7 +213,7 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 void ViNode::pubValueFunction(void)
 {
 	nav_msgs::OccupancyGrid map;//, local_map;
-	vi_->makeAstarValueFunctionMap(map, cost_drawing_threshold_, x_, y_, yaw_);  //Astar用に変更
+	vi_->makeValueFunctionMap(map, cost_drawing_threshold_, x_, y_, yaw_);  //Astar用に変更
 	pub_astar_value_function_.publish(map);
 }
 

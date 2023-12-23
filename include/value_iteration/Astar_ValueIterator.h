@@ -7,81 +7,99 @@
 
 namespace value_iteration{
 
-class Node {
-public:
-    int x; // ノードの x 座標
-    int y; // ノードの y 座標
-    double g; // スタートからの実際のコスト
-    double h; // ヒューリスティック推定コスト
-    double f; // 総コスト
-    Node* parent; // 親ノードへのポインタ
+struct ContinuousNode {
+  double x;
+  double y;   
+  double g;  
+  double h;
+  double f; 
+  ContinuousNode* parent;
 
-    Node() : x(0), y(0), g(0.0), h(0.0), f(0.0), parent(nullptr) {}
+  ContinuousNode() : x(0), y(0), g(0.0), h(0.0), f(0.0), parent(nullptr) {}
 
-    Node(int x_, int y_) : x(x_), y(y_), g(0.0), h(0.0), f(0.0), parent(nullptr) {}
+  ContinuousNode(double _x, double _y) 
+    : x(_x), y(_y), g(0.0), h(0.0), f(0.0), parent(NULL) 
+  {}
 
-    bool operator==(const Node& other) const {
-        return x == other.x && y == other.y;
+  bool operator==(const ContinuousNode& other) const {
+    return x == other.x && y == other.y;
+  }
+
+  bool operator<(const ContinuousNode& other) const {
+    if (x != other.x) {
+      return x < other.x; 
     }
+    return y < other.y;
+  }
 
 };
+
 
 class Astar_ValueIterator : public ValueIterator{
 public:
     ValueIterator* vi;
-	Astar_ValueIterator(vector<Action> &actions, int thread_num);
+	Astar_ValueIterator(std::vector<Action> &actions, int thread_num);
  
-	std::vector<geometry_msgs::Pose> calculateAStarPath(nav_msgs::OccupancyGrid &map, geometry_msgs::Pose start, geometry_msgs::Pose goal);
+	std::vector<ContinuousNode> calculateAStarPath(geometry_msgs::Pose start, ContinuousNode goal);
 
     void setMapWithOccupancyGrid(nav_msgs::OccupancyGrid &map, int theta_cell_num,
 	    double safety_radius, double safety_radius_penalty,
 	    double goal_margin_radius, int goal_margin_theta);
 
-    double calculateHeuristic(const Node& node, const Node& goal);
+    double calculateHeuristic(const ContinuousNode& node, const ContinuousNode& goal);
 
-    Node getMinimumFValueNode(const std::vector<Node>& open_list);
-    bool isGoalNode(const Node& node, const Node& goal);
-    bool inClosedList(const Node& node, const std::vector<Node>& closed);
-    void updateNodeCosts(Node& node, const Node& current, const Node& goal);
-    void addOrUpdateOpenList(std::vector<Node>& open, Node& node);
+    ContinuousNode getMinimumFValueNode(const std::set<ContinuousNode>& open_list);
+
+    bool isGoalNode(const ContinuousNode& node, const ContinuousNode& goal);
+
+    bool inClosedList(const ContinuousNode& node, const std::set<ContinuousNode>& closed);
+
+    void updateNodeCosts(ContinuousNode& node, const ContinuousNode& current, const ContinuousNode& goal);
+
+    void addOrUpdateOpenList(std::set<ContinuousNode>& open, ContinuousNode& node);
+
     //std::vector<geometry_msgs::Pose> reconstructPath(const Node& goal);
-    std::vector<geometry_msgs::Pose> calcFinalPath(const Node& goal, const std::vector<Node>& closed);
-    std::vector<Node> getAdjacentNodes(const Node& current, const nav_msgs::OccupancyGrid& map);
-    double getMoveCost(const Node& from, const Node& to);
-    bool isInsideMap(int ix, int iy);
-    bool isObstacle(int ix, int iy, const nav_msgs::OccupancyGrid& map);
 
-    void makeAstarValueFunctionMap(nav_msgs::OccupancyGrid &map, int threshold, 
-			double x, double y, double yaw_rad);
+    //std::vector<geometry_msgs::Pose> calcFinalPath(const ContinuousNode& goal, const std::vector<ContinuousNode>& closed);
 
-    void cellDelta(double x, double y, double t, int &ix, int &iy, int &it);
+    std::set<ContinuousNode> getAdjacentNodes(const ContinuousNode& current);
+
+    double getMoveCost(const ContinuousNode& from, double to_x, double to_y);
+
+    //bool isInsideMap(int ix, int iy);
+
+    //bool isObstacle(int ix, int iy, const nav_msgs::OccupancyGrid& map);
+
+    //bool isColliding(double x, double y, const nav_msgs::OccupancyGrid& map);
+
+    //void cellDelta(double x, double y, double t, int &ix, int &iy, int &it);
 
     void setGoal(double goal_x, double goal_y);
 
-    vector<int> convertAstarPathToStateIndex(const vector<Node>& nodePath);
+    //vector<int> convertAstarPathToStateIndex(const vector<Node>& nodePath);
 
-    uint64_t actionCostAstar(State &s, Action &a);
+    //uint64_t actionCostAstar(State &s, Action &a);
 
     //void valueIterationAstarPath(const vector<int>& stateIndexPath);
-    uint64_t valueIterationAstarPath(State &s);
+    //uint64_t valueIterationAstarPath(State &s);
 
     //void AstarvalueIterationLoop(void);
 
-    void valueIterationAstarPathWorker(const vector<Node>& nodePath);
+    //void valueIterationAstarPathWorker(const vector<Node>& nodePath);
 
-    void setStateTransitionWorkerSub(Action &a, int it);
+    //void setStateTransitionWorkerSub(Action &a, int it);
 
-    void setStateTransitionWorker(int it);
+    //void setStateTransitionWorker(int it);
 
-    void setStateTransition(void);
+    //void setStateTransition(void);
 
-    void noNoiseStateTransition(Action &a, double from_x, double from_y, double from_t, double &to_x, double &to_y, double &to_t);
+    //void noNoiseStateTransition(Action &a, double from_x, double from_y, double from_t, double &to_x, double &to_y, double &to_t);
 
-    void setStateValues(void);
+    //void setStateValues(void);
 
-    void setState(const nav_msgs::OccupancyGrid &map, double safety_radius, double safety_radius_penalty);
+    //void setState(const nav_msgs::OccupancyGrid &map, double safety_radius, double safety_radius_penalty);
 
-    int getIndex(int x, int y);
+    //int getIndex(int x, int y);
 
     //void setSweepOrders(void);
 
@@ -99,7 +117,9 @@ public:
 
 private:
   double goal_x_; 
-  double goal_y_;       
+  double goal_y_;  
+  //std::set<ContinuousNode> open_list;
+  //std::set<ContinuousNode> closed_list;     
   std::vector<geometry_msgs::Pose> astarPath; // 経路を保持する変数
   //std::vector<Node> nodePath;
   //std::vector<State> states_;
