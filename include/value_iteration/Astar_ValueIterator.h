@@ -56,7 +56,7 @@ public:
 
     void cellDelta(double x, double y, double t, int &ix, int &iy, int &it);
 
-    void setGoal(double goal_x, double goal_y);
+    //void setGoal(double goal_x, double goal_y);
 
     void setWindowsOnAstarPath();
 

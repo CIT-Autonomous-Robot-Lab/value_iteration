@@ -144,7 +144,7 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msg
 
   astarPath = path;
 
-  ROS_INFO("A* Path found with %lu nodes", astarPath.size());
+  //ROS_INFO("A* Path found with %lu nodes", astarPath.size());
 
   //for(auto& pose : path) {
 
@@ -171,23 +171,23 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msg
 }
 
 // goalをセット
-void Astar_ValueIterator::setGoal(double goal_x, double goal_y)
-{
-	goal_x_ = goal_x;
-	goal_y_ = goal_y;
+//void Astar_ValueIterator::setGoal(double goal_x, double goal_y)
+//{
+//	goal_x_ = goal_x;
+//	goal_y_ = goal_y;
 
-  ROS_INFO("GOAL: %f, %f", goal_x_, goal_y_);
+//  ROS_INFO("GOAL: %f, %f", goal_x_, goal_y_);
 
 	//ROS_INFO("GOAL: %f, %f", goal_x_, goal_y_);
   // ここで初期コスト設定
   //setStateValues();
 
   // ステータスやスレッド情報のクリア
-  thread_status_.clear();
-  setStateValues();
-  status_ = "calculating";
+//  thread_status_.clear();
+//  setStateValues();
+//  status_ = "calculating";
 
-}
+//}
 
 // f値が最小のノードを取得
 Node Astar_ValueIterator::getMinimumFValueNode(const std::vector<Node>& open_list)
@@ -318,7 +318,7 @@ std::vector<Node> Astar_ValueIterator::getAdjacentNodes(const Node& current, con
         //ROS_INFO("Added neighbor at (%d, %d)", nx, ny);
         //ROS_INFO("Found %lu adjacent nodes", adjacent_nodes.size());
     }
-    //ROS_INFO("Found %lu adjacent nodes", adjacent_nodes.size());
+    ROS_INFO("Found %lu adjacent nodes", adjacent_nodes.size());
     return adjacent_nodes;
 
 }
@@ -428,25 +428,32 @@ uint64_t Astar_ValueIterator::actionCostAstar(State &s, Action &a)
 void Astar_ValueIterator::setWindowsOnAstarPath() 
 {
   for (geometry_msgs::Pose pose : astarPath) {
-
+    //ROS_INFO("START MAP");
     // poseからx,yを取得してNodeに変換
     Node node(pose.position.x, pose.position.y);
-    
+    //ROS_INFO("START MAP");
     setAstarWindow(node);
     
     // マップ作成
 
   }
-  ROS_INFO("GET MAP");
+  //ROS_INFO("GET MAP");
 
 }
 
 // A*経路上のnodeを中心にウィンドウを設定
 void Astar_ValueIterator::setAstarWindow(const Node& center_node) 
 {
+  //ROS_INFO("START MAP");
+  double resolution = xy_resolution_;
+
+  int index_x = (int)(center_node.x / resolution);  
+  int index_y = (int)(center_node.y / resolution);
   // 1. 中心ノードのインデックスを取得
-  int center_x = center_node.x;
-  int center_y = center_node.y;
+  int center_x = index_x;
+  int center_y = index_y;
+
+  //ROS_INFO("center_y: %d", center_y);
 
   // 2. ウィンドウサイズからオフセットを計算
   int offset = astar_xy_range_;
@@ -469,19 +476,34 @@ void Astar_ValueIterator::setAstarWindow(const Node& center_node)
 void Astar_ValueIterator::makeAstarValueFunctionMap(nav_msgs::OccupancyGrid &map, int threshold,
 		double x, double y, double yaw_rad)
 {
-	map.header.stamp = ros::Time::now();
-	map.header.frame_id = "map";
-	map.info.resolution = xy_resolution_;
-	map.info.width = astar_ixy_range_*2 + 1;
-	map.info.height = astar_ixy_range_*2 + 1;
-	map.info.origin.position.x = x - astar_ixy_range_;
-	map.info.origin.position.y = y - astar_ixy_range_;
-	map.info.origin.orientation = map_origin_quat_;
+  // ウィンドウサイズから幅と高さを設定
+  int width = astar_ix_max_ - astar_ix_min_ + 1;
+  int height = astar_iy_max_ - astar_iy_min_ + 1;
+
+  // マップ情報設定
+  map.header.stamp = ros::Time::now();
+  map.header.frame_id = "map";
+
+  map.info.width = width;
+  map.info.height = height;
+  map.info.resolution = xy_resolution_;
+  
+  map.info.origin.position.x = x - astar_ixy_range_;
+  map.info.origin.position.y = y - astar_ixy_range_;
+  map.info.origin.orientation = map_origin_quat_;
+
+  //ROS_INFO("astar_ix_max_: %d", width);
+  //ROS_INFO("astar_iy_max_: %d", height);
+
+  // データサイズを幅x高さに設定
+  map.data.resize(width * height);
+
 
         int it = (int)floor( ( ((int)(yaw_rad/M_PI*180) + 360*100)%360 )/t_resolution_ );
 
-	for(int y=astar_iy_min_; y<=astar_iy_max_; y++)
-		for(int x=astar_ix_min_; x<=astar_ix_max_; x++){
+	for(int y = 0; y < height; y++)
+    //ROS_INFO("y: %d", y);
+		for(int x = 0; x < width; x++){
 			int index = toIndex(x, y, it);
 			double cost = (double)states_[index].total_cost_/prob_base_;
 			if(cost < (double)threshold)

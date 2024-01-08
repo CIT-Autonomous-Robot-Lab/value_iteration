@@ -145,7 +145,7 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 	double roll, pitch, yaw;
 	tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
 	int t = (int)(yaw*180/M_PI);
-	vi_->setGoal(goal->goal.pose.position.x, goal->goal.pose.position.y);
+	//vi_->setGoal(goal->goal.pose.position.x, goal->goal.pose.position.y);
 
 	double goal_x = goal->goal.pose.position.x;
 	double goal_y = goal->goal.pose.position.y;
@@ -169,13 +169,13 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 	}
 
 	//vi_->valueIterationAstarPathWorker(path);
-	//vi_->setWindowsOnAstarPath();
+	vi_->setWindowsOnAstarPath();
 
 	//vi_->astarValueIterationLoop();
 
-	vector<thread> ths;
-	for(int t=0; t<vi_->thread_num_; t++)
-		thread(&Astar_ValueIterator::valueIterationAstarPathWorker, vi_.get(), 1).detach();
+	//vector<thread> ths;
+	//for(int t=0; t<vi_->thread_num_; t++)
+	//	thread(&Astar_ValueIterator::valueIterationAstarPathWorker, vi_.get(), 1).detach();
 	//	ths.push_back(thread(&Astar_ValueIterator::valueIterationAstarPathWorker, vi_.get(), nodePath, t));
 
 	value_iteration::ViFeedback vi_feedback;
@@ -191,8 +191,8 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 	}
 	as_->publishFeedback(vi_feedback);
 
-	for(auto &th : ths)
-		th.join();
+	//for(auto &th : ths)
+	//	th.join();
 
 	vi_->setCalculated();
 	ROS_INFO("VALUE ITERATION END");
@@ -211,8 +211,8 @@ void ViNode::executeVi(const value_iteration::ViGoalConstPtr &goal)
 
 void ViNode::pubValueFunction(void)
 {
-	nav_msgs::OccupancyGrid map;//, local_map;
-	vi_->makeValueFunctionMap(map, cost_drawing_threshold_, x_, y_, yaw_);  //Astar用に変更
+	nav_msgs::OccupancyGrid map, local_map;
+	vi_->makeAstarValueFunctionMap(map, cost_drawing_threshold_, x_, y_, yaw_);  //Astar用に変更
 	pub_astar_value_function_.publish(map);
 }
 
