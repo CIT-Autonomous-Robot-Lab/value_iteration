@@ -1,5 +1,6 @@
 #include "value_iteration/Astar_ValueIterator.h"
 #include <thread>
+#include <chrono>
 
 namespace value_iteration{
 
@@ -59,6 +60,7 @@ double Astar_ValueIterator::calculateHeuristic(const Node& node, const Node& goa
 
 std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msgs::OccupancyGrid &map, geometry_msgs::Pose start, geometry_msgs::Pose goal)
 {
+  auto start_time = std::chrono::high_resolution_clock::now();
   //std::vector<Node> path;
   // 開始ノード
   int start_x = -3.0;
@@ -143,6 +145,11 @@ std::vector<geometry_msgs::Pose> Astar_ValueIterator::calculateAStarPath(nav_msg
   //ROS_INFO("Path found with %lu nodes", path.size());
 
   astarPath = path;
+
+  auto end_time = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
+
+  std::cout << "A*探索の実行時間: " << duration << "ナノ秒" << std::endl;
 
   //ROS_INFO("A* Path found with %lu nodes", astarPath.size());
 
@@ -431,10 +438,12 @@ void Astar_ValueIterator::setWindowsOnAstarPath()
     //ROS_INFO("START MAP");
     // poseからx,yを取得してNodeに変換
     Node node(pose.position.x, pose.position.y);
+    ROS_INFO("node: (%d, %d)", node.x, node.y);
     //ROS_INFO("START MAP");
     setAstarWindow(node);
     
     // マップ作成
+    //makeLocalValueFunctionMap(map, threshold, node.x, node.y, yaw_rad);
 
   }
   //ROS_INFO("GET MAP");
